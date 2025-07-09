@@ -1,0 +1,168 @@
+import React, { useRef, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
+import {
+  Camera,
+  useCameraDevice,
+  useCameraPermission,
+} from 'react-native-vision-camera';
+import { useFrameProcessor } from 'react-native-vision-camera'
+// import moveToGallery from './fileCopy';
+
+
+
+const App = () => {
+  const { hasPermission, requestPermission } = useCameraPermission();
+  //hook provided by module to check permmission state and also provides method named requestPermission 
+  //to pop up setting  
+  console.log(hasPermission)
+  const device = useCameraDevice('back');
+  console.log("the returned device we got",device)
+  console.log("device is an object which has properties",device?.minZoom)
+  // to access best camera available on device
+  const cameraRef = useRef<Camera>(null);// this stays consistent across re-renders
+  // useRef is a hook that gives you a container (called a "ref") that
+  //  can store a value without causing a re-render when it changes.
+  // "It's a special container that remembers a value between renders but 
+  // changing it doesn’t cause a re-render."
+  const [photoUri, setPhotoUri] = useState("");
+
+  const captureImage = async () => {
+    if (cameraRef.current) {
+      const photo = await cameraRef.current.takePhoto({
+        flash: 'on',
+        //returned photo is an  object//
+      });
+      setPhotoUri(`file://${photo.path}`);
+      console.log("this is the photo objet we got",photo)
+      // moveToGallery(photo.path)
+      // { isMirrored: false,
+      //                        │ path: '/data/user/0/com.privacy/cache/mrousavy8432853042043491865.jpg',
+      //                        │ isRawPhoto: false,
+      //                        │ height: 4080,
+      //                        │ orientation: 'portrait',
+      //                        └ width: 3060 }
+    }
+  };
+
+
+const frameProcessor = useFrameProcessor((frame) => {
+  'worklet';
+
+  // ✅ Extract values early
+  const format = frame.pixelFormat;
+  const width = frame.width;
+  const height = frame.height;
+
+  console.log(`Frame: ${width}x${height} - Format: ${format}`);
+
+  if (format === 'rgb') {
+    try {
+      const buffer = frame.toArrayBuffer(); // Safe if used directly here
+      const data = new Uint8Array(buffer);
+
+      // Log first pixel safely
+      console.log(`First pixel: RGB(${data[0]}, ${data[1]}, ${data[2]})`);
+    } catch (error) {
+      console.log('toArrayBuffer failed:', error);
+    }
+  } else {
+    console.log('Not RGB format!');
+  }
+}, []);
+
+// console.log("this is the frame processor",frameProcessor)
+
+
+
+
+
+
+
+
+  if (device == null) return <View><Text>Loading...</Text></View>;
+
+  if (!hasPermission) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.text}>Camera permission needed</Text>
+        <Pressable onPress={()=>requestPermission()} style={styles.button}>
+          <Text style={styles.buttonText}>Grant</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {photoUri ? (
+        <>
+          <Image
+            source={{ uri: photoUri }}
+            style={{ width: '100%', height: '80%' }}
+            resizeMode="cover"
+          />
+          <Pressable style={styles.button} onPress={() => setPhotoUri("")}>
+            <Text style={styles.buttonText}>Back to Camera</Text>
+          </Pressable>
+        </>
+      ) : (
+       
+        <>
+      
+          <Camera
+            style={styles.camera}
+            device={device}
+            pixelFormat="rgb" // 👈 Force RGB format
+              frameProcessor={frameProcessor}  // ✅ this line is required
+              // here frameprocesser will be automatically passed frame argument
+            isActive={true}
+            // Whether the Camera should actively stream video frames
+            ref={cameraRef}
+            resizeMode={"contain"}
+            preview={true}
+            // Preview = The live camera feed you see on screen.
+            // That visible "live image" — the real-time stream from your camera sensor — is called the preview.
+            photo={true} // very important!
+             onPreviewStarted={() => console.log('Preview started!')}
+               onPreviewStopped={() => console.log('Preview stopped!')}
+              //  Preview frame rate is the number of frames (images) the camera sends per second to render the live preview on screen.
+              // fps={15}
+          />
+          <Pressable style={styles.captureButton} onPress={captureImage}>
+            <Text style={styles.buttonText}>Click Photo</Text>
+          </Pressable>
+        </>
+      )}
+    </View>
+  );
+};
+
+export default App;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  text: { color: '#fff', marginBottom: 20 },
+  button: {
+    backgroundColor: '#007bff',
+    padding: 10,
+    marginTop: 20,
+    borderRadius: 6,
+  },
+  captureButton: {
+    position: 'absolute',
+    bottom: 40,
+    backgroundColor: '#1abc9c',
+    padding: 14,
+    borderRadius: 50,
+  },
+  buttonText: { color: 'white', fontWeight: 'bold' },
+  camera: {
+    width: '100%',
+    height: '100%',
+  },
+});
