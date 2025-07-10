@@ -1,14 +1,18 @@
-import React, { useRef, useState } from 'react';
+import 'react-native-reanimated';
+
+
+import { useRef, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
 import {
   Camera,
   useCameraDevice,
   useCameraPermission,
-  TorchMode,
+  
 } from 'react-native-vision-camera';
 import { useFrameProcessor } from 'react-native-vision-camera'
 // import moveToGallery from './fileCopy';
 
+import "react-native-worklets-core";
 
 
 const App = () => {
