@@ -4,6 +4,7 @@ import {
   Camera,
   useCameraDevice,
   useCameraPermission,
+  TorchMode,
 } from 'react-native-vision-camera';
 import { useFrameProcessor } from 'react-native-vision-camera'
 // import moveToGallery from './fileCopy';
@@ -26,6 +27,17 @@ const App = () => {
   // changing it doesn’t cause a re-render."
   const [photoUri, setPhotoUri] = useState("");
 
+
+// function printCentreHexValue([r,g,b]){
+//     return "#" + [r, g, b].map(x => {
+//     const hex = x.toString(16);
+//     return hex.length === 1 ? "0" + hex : hex;
+//   }).join("");
+
+// }
+
+
+
   const captureImage = async () => {
     if (cameraRef.current) {
       const photo = await cameraRef.current.takePhoto({
@@ -44,32 +56,33 @@ const App = () => {
     }
   };
 
-
 const frameProcessor = useFrameProcessor((frame) => {
   'worklet';
 
-  // ✅ Copy data immediately, while frame is still valid:
+  // ✅ Extract values early
   const format = frame.pixelFormat;
   const width = frame.width;
   const height = frame.height;
 
-  // ✅ Now use the copied values, not frame
   console.log(`Frame: ${width}x${height} - Format: ${format}`);
 
   if (format === 'rgb') {
     try {
-      // ✅ Still inside sync block, so this is safe:
-      const buffer = frame.toArrayBuffer();
+      const buffer = frame.toArrayBuffer(); // Safe if used directly here
       const data = new Uint8Array(buffer);
 
-      // Safe because we already got the buffer
+      // Log first pixel safely
       console.log(`First pixel: RGB(${data[0]}, ${data[1]}, ${data[2]})`);
-      
-    } catch (err) {
-      console.log('toArrayBuffer failed:', err);
+    } catch (error) {
+      console.log('toArrayBuffer failed:', error);
     }
+  } else {
+    console.log('Not RGB format!');
   }
 }, []);
+
+
+
 
 
 // console.log("this is the frame processor",frameProcessor)
@@ -120,6 +133,7 @@ const frameProcessor = useFrameProcessor((frame) => {
             isActive={true}
             // Whether the Camera should actively stream video frames
             ref={cameraRef}
+            //  torch={TorchMode:'on'}
             resizeMode={"contain"}
             preview={true}
             // Preview = The live camera feed you see on screen.

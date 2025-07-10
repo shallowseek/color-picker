@@ -1,0 +1,255 @@
+import React, { useRef, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
+import {
+  Camera,
+  useCameraDevice,
+  useCameraPermission,
+} from 'react-native-vision-camera';
+import { useFrameProcessor } from 'react-native-vision-camera'
+// import moveToGallery from './fileCopy';
+
+
+
+const App = () => {
+  const { hasPermission, requestPermission } = useCameraPermission();
+  //hook provided by module to check permmission state and also provides method named requestPermission 
+  //to pop up setting  
+  console.log(hasPermission)
+  const device = useCameraDevice('back');
+  console.log("the returned device we got",device)
+  console.log("device is an object which has properties",device?.minZoom)
+  // to access best camera available on device
+  const cameraRef = useRef<Camera>(null);// this stays consistent across re-renders
+  // useRef is a hook that gives you a container (called a "ref") that
+  //  can store a value without causing a re-render when it changes.
+  // "It's a special container that remembers a value between renders but 
+  // changing it doesn’t cause a re-render."
+  const [photoUri, setPhotoUri] = useState("");
+
+
+// function printCentreHexValue([r,g,b]){
+//     return "#" + [r, g, b].map(x => {
+//     const hex = x.toString(16);
+//     return hex.length === 1 ? "0" + hex : hex;
+//   }).join("");
+
+// }
+
+
+
+  const captureImage = async () => {
+    if (cameraRef.current) {
+      const photo = await cameraRef.current.takePhoto({
+        flash: 'on',
+        //returned photo is an  object//
+      });
+      setPhotoUri(`file://${photo.path}`);
+      console.log("this is the photo objet we got",photo)
+      // moveToGallery(photo.path)
+      // { isMirrored: false,
+      //                        │ path: '/data/user/0/com.privacy/cache/mrousavy8432853042043491865.jpg',
+      //                        │ isRawPhoto: false,
+      //                        │ height: 4080,
+      //                        │ orientation: 'portrait',
+      //                        └ width: 3060 }
+    }
+  };
+
+
+const frameProcessor = useFrameProcessor((frame) => {
+  'worklet';
+
+  // ✅ Copy data immediately, while frame is still valid:
+  const format = frame.pixelFormat;
+  const width = frame.width;
+  const height = frame.height;
+  const centerX = Math.floor(width / 2);   // correct
+const centerY = Math.floor(height / 2);  // correct
+const index = (centerY * width + centerX) * 3;
+  // ✅ Now use the copied values, not frame
+  console.log(`Frame: ${width}x${height} - Format: ${format}`);
+
+  if (format === 'rgb') {
+    try {
+      // ✅ Still inside sync block, so this is safe:
+      const buffer = frame.toArrayBuffer();
+      const data = new Uint8Array(buffer);
+          const r = data[index];
+          const g = data[index + 1];
+          const b = data[index + 2];
+      // Safe because we already got the buffer
+      // console.log(`Center pixel: RGB(${data[0]}, ${data[1]}, ${data[2]})`);
+      console.log(`RGB at center: (${r}, ${g}, ${b})`);
+      console.log("this is the length of total pixels in bytes",data.byteLength)
+      // console.log(printCentreHexValue([r,g,b]))   
+    } catch (err) {
+      console.log('toArrayBuffer failed:', err);
+    }
+  }
+}, []);
+
+
+// console.log("this is the frame processor",frameProcessor)
+
+
+
+
+
+
+
+
+  if (device == null) return <View><Text>Loading...</Text></View>;
+
+  if (!hasPermission) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.text}>Camera permission needed</Text>
+        <Pressable onPress={()=>requestPermission()} style={styles.button}>
+          <Text style={styles.buttonText}>Grant</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {photoUri ? (
+        <>
+          <Image
+            source={{ uri: photoUri }}
+            style={{ width: '100%', height: '80%' }}
+            resizeMode="cover"
+          />
+          <Pressable style={styles.button} onPress={() => setPhotoUri("")}>
+            <Text style={styles.buttonText}>Back to Camera</Text>
+          </Pressable>
+        </>
+      ) : (
+       
+        <>
+      
+          <Camera
+            style={styles.camera}
+            device={device}
+            pixelFormat="rgb" // 👈 Force RGB format
+              frameProcessor={frameProcessor}  // ✅ this line is required
+              // here frameprocesser will be automatically passed frame argument
+            isActive={true}
+            // Whether the Camera should actively stream video frames
+            ref={cameraRef}
+            resizeMode={"contain"}
+            preview={true}
+            // Preview = The live camera feed you see on screen.
+            // That visible "live image" — the real-time stream from your camera sensor — is called the preview.
+            photo={true} // very important!
+             onPreviewStarted={() => console.log('Preview started!')}
+               onPreviewStopped={() => console.log('Preview stopped!')}
+              //  Preview frame rate is the number of frames (images) the camera sends per second to render the live preview on screen.
+              // fps={15}
+          />
+          <Pressable style={styles.captureButton} onPress={captureImage}>
+            <Text style={styles.buttonText}>Click Photo</Text>
+          </Pressable>
+        </>
+      )}
+    </View>
+  );
+};
+
+export default App;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  text: { color: '#fff', marginBottom: 20 },
+  button: {
+    backgroundColor: '#007bff',
+    padding: 10,
+    marginTop: 20,
+    borderRadius: 6,
+  },
+  captureButton: {
+    position: 'absolute',
+    bottom: 40,
+    backgroundColor: '#1abc9c',
+    padding: 14,
+    borderRadius: 50,
+  },
+  buttonText: { color: 'white', fontWeight: 'bold' },
+  camera: {
+    width: '100%',
+    height: '100%',
+  },
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// can't we do full data console log, but it will disrupt flow inse that would be too large array
+// ChatGPT said:
+
+// You're absolutely right — and this is an excellent observation.
+// ✅ Yes, You can console.log() the full pixel data (Uint8Array), but:
+
+//     It's a huge array:
+//     A 1080×1920 image (Full HD) has:
+
+//         1080 × 1920 × 3 = 6,220,800 values (for RGB)
+
+//         That’s over 6 million integers between 0–255.
+
+//     Printing it will freeze or crash your app:
+//     console.log(hugeArray) will block the JS thread, flood the Metro console, and may cause:
+
+//         Frame drops / crashes
+
+//         Metro Bundler lag or hang
+
+//         Device performance issues
+
+// ✅ Best Practice
+
+// Instead of logging the full array, log just a small portion:
+
+// console.log('First 10 RGB values:', data.slice(0, 10))
+
+// Or if you want to log the first 3 pixels:
+
+// for (let i = 0; i < 3 * 3; i += 3) {
+//   console.log(`Pixel ${i / 3}: RGB(${data[i]}, ${data[i + 1]}, ${data[i + 2]})`)
+// }
+
+// 🧪 For Debugging: Save to file instead of console
+
+// If you're deeply testing the RGB array and need all values:
+
+//     Write data to a .json file or use react-native-fs to save to storage.
+
+//     Or send the buffer to a server endpoint for inspection.
+
+// Summary
+// ❌ Don't	✅ Do Instead
+// console.log(data) if it's huge	Log only data.slice(0, 10)
+// console.log(frame)	Use frame.toString()
+// Use frame after async	Copy values first, then use
+
+// Let me know if you'd like help writing a debug logger that prints specific pixels like center, top-left, or average color!
